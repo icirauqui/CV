@@ -33,6 +33,8 @@ file(CREATE_LINK "${PROJECT_SOURCE_DIR}/images"
 #        "${CMAKE_CURRENT_BINARY_DIR}/images" SYMBOLIC)
 
 add_executable(lense
+  src/fe_lens/fe_lens.cpp
+  src/fe_lens/fe_lens.hpp
   src/main.cpp
 )
 

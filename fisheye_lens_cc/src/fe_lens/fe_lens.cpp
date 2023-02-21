@@ -51,7 +51,7 @@ std::vector<cv::Point3f> computeFisheyeSurface(std::vector<cv::Point2f> points, 
 
   // Compute the surface of the fisheye lens from the undistorted points
   std::vector<cv::Point3f> points3d;
-  for (int i = 0; i < points.size(); i++) {
+  for (unsigned int i = 0; i < points.size(); i++) {
     points3d.push_back(compute3dOverLens(points[i], f, D));
   }
 
@@ -66,12 +66,12 @@ std::vector<cv::Point3f> computeImageFromFisheyeSurface(std::vector<cv::Point3f>
 
   // Compute the surface of the fisheye lens from the undistorted points
   std::vector<cv::Point3f> points3d;
-  for (int i = 0; i < points.size(); i++) {
+  for (unsigned int i = 0; i < points.size(); i++) {
     // Theta from third component
     float theta = acos(points[i].z / f);
 
     // Phi from any of the other components
-    float phi = acos(points[i].x / (f * sin(theta)));
+    //float phi = acos(points[i].x / (f * sin(theta)));
 
     float d1 = D.at<double>(0, 0);
     float d2 = D.at<double>(1, 0);
@@ -105,7 +105,7 @@ std::vector<cv::Point3f> compute3DFrom2D(std::vector<cv::Point2f> points, const 
 
   // Compute the surface of the fisheye lens from the undistorted points
   std::vector<cv::Point3f> points3d;
-  for (int i = 0; i < points.size(); i++) {
+  for (unsigned int i = 0; i < points.size(); i++) {
 
     float d1 = D.at<double>(0, 0);
     float d2 = D.at<double>(1, 0);

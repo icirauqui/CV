@@ -1,7 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 
-cc_binary(
+cc_library(
     name = "fe_lens",
     hdrs = ["fe_lens.hpp"],
     srcs = ["fe_lens.cpp"],

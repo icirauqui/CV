@@ -76,6 +76,7 @@
         "regex": "cpp",
         "future": "cpp",
         "span": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "*.ipp": "cpp"
     }
 }

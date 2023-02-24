@@ -14,11 +14,11 @@
 
 class NewtonRaphson {
 
-  // Instructions for Newton-Raphson solver
-  //double f(double x) { return x * x - 2; }
-  //double f_prime(double x) { return 2 * x; }
-  //NewtonRaphson solver(1, 1e-6, 100);
-  //double x = solver.solve(f, f_prime);
+// Instructions for Newton-Raphson solver
+//   double f(double x) { return x * x - 2; }
+//   double f_prime(double x) { return 2 * x; }
+//   NewtonRaphson solver(1, 1e-6, 100);
+//   double x = solver.solve(f, f_prime);
 
 public:
   NewtonRaphson(double tol, unsigned int max_iter);
@@ -45,13 +45,13 @@ public:
   // Inverse of RTheta with Newton-Raphson
   double RThetaInv(double r_theta, double x0 = 0.1);
 
-  double FocalLength();
+  cv::Point2f Compute2D(double theta, double phi, bool world_coord = false);
 
-  cv::Point2f Compute2D(double theta, double phi, bool sim = false);
-
-  std::vector<double> Compute3D(double x, double y, bool sim = false, double x0 = 0.1);
+  std::vector<double> Compute3D(double x, double y, bool world_coord = false, double x0 = 0.1);
 
   double ComputeError(std::vector<std::vector<double>> v1, std::vector<std::vector<double>> v2);
+
+  double f();
 
   inline double fx() { return fx_; }
   inline double fy() { return fy_; }
@@ -77,9 +77,31 @@ private:
 
 
 
+class Visualizer {
+
+public: 
+  Visualizer(std::string window_name = "3D", double scale = 1.0);
+
+  void AddCloud(std::vector<cv::Point3f> cloud, std::vector<cv::Vec3b> color);
+
+  void AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color = cv::Vec3b(100,100,100));
+
+  void Render();
+
+private:
+
+  std::vector<std::vector<cv::Point3f>> point_clouds_;
+  std::vector<std::vector<cv::Vec3b>> colors_;
+
+  cv::viz::Viz3d window_;
+  std::string window_name_ = "3D";
+  double scale_ = 1.0;
+
+};
 
 
 
+/*
 // Compute focal lenght from camera intrinsics
 double FocalLength(const cv::Mat &K);
 
@@ -111,7 +133,7 @@ void display3dSurface(std::vector<cv::Point3f> points, std::vector<cv::Vec3b> co
 void display3dSurfaceAndImage(std::vector<std::vector<cv::Point3f>> points, std::vector<cv::Vec3b> colors);
 
 void display3dSurfaceAndImage(std::vector<std::vector<cv::Point3f>> points, std::vector<std::vector<cv::Vec3b>> colors);
-
+*/
 
 #endif
 

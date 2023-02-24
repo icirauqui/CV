@@ -1,27 +1,29 @@
 #include "fe_lens.hpp"
 
 
+
 double vis_scale = 1.0;
 
-  NewtonRaphson::NewtonRaphson(double tol, unsigned int max_iter) : tol_(tol), max_iter_(max_iter) {}
+NewtonRaphson::NewtonRaphson(double tol, unsigned int max_iter) : tol_(tol), max_iter_(max_iter) {}
 
-  double NewtonRaphson::solve(double x0, std::function<double (double)> (f), std::function<double (double)> (f_prime)) {
-    double x = x0;
 
-    //std::cout << "Newton-Raphson: " << x << std::endl;
+double NewtonRaphson::solve(double x0, std::function<double (double)> (f), std::function<double (double)> (f_prime)) {
+  double x = x0;
+
+  //std::cout << "Newton-Raphson: " << x << std::endl;
     
-    for (unsigned int i=0; i<max_iter_; i++) {
-      double fx = f(x);
-      double dfx = f_prime(x);
-      double x1 = x - fx / dfx;
-      //std::cout << "NR " << i << ":\t" << x << " " << fx << " " << dfx << " " << x1 << std::endl;
-      if (std::abs(x1 - x) < tol_) {
-        return x1;
-      }
-      x = x1;
+  for (unsigned int i=0; i<max_iter_; i++) {
+    double fx = f(x);
+    double dfx = f_prime(x);
+    double x1 = x - fx / dfx;
+    //std::cout << "NR " << i << ":\t" << x << " " << fx << " " << dfx << " " << x1 << std::endl;
+    if (std::abs(x1 - x) < tol_) {
+      return x1;
     }
-    return std::numeric_limits<double>::quiet_NaN(); // return NaN if the method doesn't converge
+    x = x1;
   }
+  return std::numeric_limits<double>::quiet_NaN(); // return NaN if the method doesn't converge
+}
 
 
 
@@ -67,37 +69,25 @@ double FisheyeLens::RThetaInv(double r_theta, double x0) {
 }
 
 
-double FisheyeLens::FocalLength() {
-  double lx = 2 * cx_;
-  double ly = 2 * cy_;
 
-  double f = (lx / (lx + ly)) * fx_ + (ly / (lx + ly)) * fy_;
-
-  return f;
-}
-
-
-//cv::Point2f FisheyeLens::Compute2D(double theta, double phi) {
-//  double r_theta = RTheta(theta);
-//  double x = r_theta * cos(phi);
-//  double y = r_theta * sin(phi);
-//  return cv::Point2f(x, y);
-//}
-
-
-cv::Point2f FisheyeLens::Compute2D(double theta, double phi, bool sim) {
+cv::Point2f FisheyeLens::Compute2D(double theta, double phi, bool world_coord) {
   double r_d = Rd(theta);
   double x_d = r_d * cos(phi);
   double y_d = r_d * sin(phi);
-  std::cout << "r_d: " << r_d << " " << x_d << " " << y_d << std::endl;
-  double x = fx_ * x_d + cx_;
-  double y = fy_ * y_d + cy_;
+  //std::cout << "r_d: " << r_d << " " << x_d << " " << y_d << std::endl;
 
-  // We want to compare in world coordinates
-  x = x_d;
-  y = y_d;
+  if (world_coord) {
+    return cv::Point2f(x_d, y_d);
+  } else {
+    double x = fx_ * x_d + cx_;
+    double y = fy_ * y_d + cy_;
+    return cv::Point2f(x, y);
+  }
 
-  return cv::Point2f(x, y);
+  //  double r_theta = RTheta(theta);
+  //  double x = r_theta * cos(phi);
+  //  double y = r_theta * sin(phi);
+  //  return cv::Point2f(x, y);
 }
 
 /*
@@ -141,56 +131,46 @@ std::vector<double> FisheyeLens::Compute3D(double x, double y, bool sim, double 
 
 
 
-std::vector<double> FisheyeLens::Compute3D(double x, double y, bool sim, double x0) {  
+std::vector<double> FisheyeLens::Compute3D(double x, double y, bool world_coord, double x0) {  
   double phi = 0.0;
   double theta = 0.0;
 
-  double x_d = (x - cx_) / fx_;
-  double y_d = (y - cy_) / fy_;
+  double x_d = x;
+  double y_d = y;
 
-  if (x_d == 0.0) {
-    if (y_d >= 0.0) {
-      phi = M_PI / 2.0;
-    } else {
-      phi = -M_PI / 2.0;
-    }
-  } else {
-    phi = atan(y_d / x_d);
+  // If we're in camera coordinate system, convert to world coordinate system
+  if (!world_coord) {
+    x_d = (x - cx_) / fx_;
+    y_d = (y - cy_) / fy_;
   }
 
-
-  // We want to compare in world coordinates
-  if (sim) {
-    x_d = x;
-    y_d = y;
-  }
-
+  // If the point is at the center of the image, return 0,0
   if (x_d == 0.0 && y_d == 0.0) {
     return std::vector<double>({theta, phi});
   }
 
+  // If the point is on the y-axis, set phi to pi/2 or -pi/2
   if (x_d == 0.0) {
-    if (y_d >= 0.0) {
-      phi = M_PI / 2.0;
-    } else {
-      phi = -M_PI / 2.0;
-    }
+    phi = (y_d >= 0.0) ? (M_PI / 2.0) : (-M_PI / 2.0);
   } else {
     phi = atan(y_d / x_d);
   }
 
+  // If the point is on the negative x-axis, sum 180 degrees to phi
   if (x_d < 0.0) {
     phi += M_PI;
   }
 
+  // Compute the distance from the center of the image to the distorted point
   double r_d = sqrt(pow(x_d, 2) + pow(y_d, 2));
 
   theta = RThetaInv(r_d, x0);
 
-  std::cout << "( " << x << ", " << y << " ) -> " 
-            << "( " << x_d << ", " << y_d << " ) -> " 
-            << "[ " << theta << ", " << phi << "] " 
-            << r_d << std::endl;
+  //std::cout << "( " << x << ", " << y << " ) -> " 
+  //          << "( " << x_d << ", " << y_d << " ) -> " 
+  //          << "[ " << theta << ", " << phi << "] " 
+  //          << r_d << std::endl;
+            
   return std::vector<double>({theta, phi});
 }
 
@@ -215,6 +195,58 @@ double FisheyeLens::ComputeError(std::vector<std::vector<double>> v1, std::vecto
 
 
 
+double FisheyeLens::f() {
+  double lx = 2 * cx_;
+  double ly = 2 * cy_;
+
+  double f = (lx / (lx + ly)) * fx_ + (ly / (lx + ly)) * fy_;
+
+  return f;
+}
+
+
+
+Visualizer::Visualizer(std::string window_name, double scale):
+  window_name_(window_name), scale_(scale) {
+  //cv::viz::Viz3d window_(window_name_);
+  //cv::namedWindow(window_name_, cv::WINDOW_AUTOSIZE);
+}
+
+
+void Visualizer::AddCloud(std::vector<cv::Point3f> cloud, std::vector<cv::Vec3b> color) {
+  point_clouds_.push_back(cloud);
+  colors_.push_back(color);
+}
+
+
+void Visualizer::AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color) {
+  std::vector<cv::Vec3b> colors;
+  for (unsigned int i = 0; i < cloud.size(); i++) {
+    colors.push_back(color);
+  }
+  AddCloud(cloud, colors);
+}
+
+
+void Visualizer::Render() {
+  window_ = cv::viz::Viz3d(window_name_);
+
+  for (unsigned int i=0; i<point_clouds_.size(); i++) {
+    std::string name = "cloud" + std::to_string(i);
+    cv::viz::WCloud cloud(point_clouds_[i], colors_[i]);
+    window_.showWidget(name, cloud);
+  }
+
+  // Add a coordinate system
+  cv::viz::WCoordinateSystem world_coor(vis_scale);
+  window_.showWidget("World", world_coor);
+
+  window_.spin();
+}
+
+
+
+/*
 
 double FocalLength(const cv::Mat &K) {
   double fx = K.at<double>(0, 0);
@@ -229,6 +261,8 @@ double FocalLength(const cv::Mat &K) {
 
   return f;
 }
+
+
 
 
 cv::Point3f compute3dOverLens(cv::Point2f p, float f, const cv::Mat &D) {
@@ -275,27 +309,6 @@ cv::Point3f compute3dOverLens2(cv::Point2f p, float f, const cv::Mat &D) {
 
 
 
-/*
-  auto func = [d1, d2, d3, d4](double th) {
-    std::cout << d1 << "\t" << d2 << "\t" << d3 << "\t" << d4 << "\t" << th << std::endl;
-    return d1*pow(th,1) + d2*pow(th,3) + d3*pow(th,5) + d4*pow(th,7);
-  };
-
-  auto func_prime = [d1, d2, d3, d4](double th) {
-    return d1*1*pow(th,0) - d2*3*pow(th,2) - d3*5*pow(th,4) - d4*7*pow(th,6);
-  };
-
-
-  NewtonRaphson solver(0.1, 1e-6, 10000);
-  double theta_solver = solver.solve(func, func_prime);
-
-
-  std::cout << "theta: " << theta << "\t" << theta_solver << std::endl;
-*/
-
-
-
-
 
 
 
@@ -307,22 +320,6 @@ cv::Point3f compute3dOverLens2(cv::Point2f p, float f, const cv::Mat &D) {
 
 
 
-
-
-/*
-
-  float r = sqrt(pow(p.x, 2) + pow(p.y, 2));
-  float theta_d = atan2(r, f);
-  float theta = theta_d / (1 + D.at<double>(0, 0)*pow(theta_d,2) + D.at<double>(1, 0)*pow(theta_d,4) + D.at<double>(2, 0)*pow(theta_d,6) + D.at<double>(3, 0)*pow(theta_d,8));
-
-
-  float x = f * sin(theta) * cos(phi);
-  float y = f * sin(theta) * sin(phi);
-  float z = f * cos(theta);
-
-  return cv::Point3f(f * sin(theta) * cos(phi), f * sin(theta) * sin(phi), f * cos(theta));
-  return cv::Point3f(-x, -y, z);
-*/
   return cv::Point3f(x,y,z);
 }
 
@@ -534,3 +531,8 @@ void display3dSurfaceAndImage(std::vector<std::vector<cv::Point3f>> points, std:
 
   window.spin();
 }
+
+
+
+
+*/

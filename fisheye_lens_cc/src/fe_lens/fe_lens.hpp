@@ -99,41 +99,5 @@ private:
 
 };
 
-
-
-/*
-// Compute focal lenght from camera intrinsics
-double FocalLength(const cv::Mat &K);
-
-// Compute the 3D position of a 2D feature, i.e., it's position over the lens surface in camera rf (pixel coords)
-cv::Point3f compute3dOverLens(cv::Point2f p, float f, const cv::Mat &D);
-
-// Compute the 3D position of a 2D feature, i.e., it's position over the lens surface in camera rf (pixel coords)
-cv::Point3f compute3dOverLens2(cv::Point2f p, float f, const cv::Mat &D);
-
-// Opposite from the previous one, computes the 2D x,y coordinates from the feature position over the lens surface
-cv::Point2f compute2dFromLens(cv::Point3f p, float f, float theta, float phi, const cv::Mat &D);
-
-// Compute the 3D surface of a Kannala-Brandt fisheye lens
-std::vector<cv::Point3f> computeFisheyeSurface(std::vector<cv::Point2f> points, const cv::Mat &K, const cv::Mat &D, int width, int height);
-
-// Opposite from the prevoous one, computes the 2D image projection from the feature position over the lens surface. Follows OpenCV docs
-std::vector<cv::Point3f> computeImageFromFisheyeSurface(std::vector<cv::Point3f> points, const cv::Mat &K, const cv::Mat &D, int width, int height);
-
-// Opposite from the prevoous one, computes the 2D image projection from the feature position over the lens surface. Follows KB equations
-std::vector<cv::Point3f> computeImageFromFisheyeSurface2(std::vector<cv::Point3f> points, const cv::Mat &K, const cv::Mat &D, int width, int height);
-
-// Same as before, different approach
-std::vector<cv::Point3f> compute3DFrom2D(std::vector<cv::Point2f> points, const cv::Mat &K, const cv::Mat &D, int width, int height);
-
-// Display the 3D surface of a fisheye lens (or any other 3D surface)
-void display3dSurface(std::vector<cv::Point3f> points, std::vector<cv::Vec3b> colors = std::vector<cv::Vec3b>());
-
-// Display the 3D surface of a fisheye lens (or any other 3D surface) and the image (also in 3D space)
-void display3dSurfaceAndImage(std::vector<std::vector<cv::Point3f>> points, std::vector<cv::Vec3b> colors);
-
-void display3dSurfaceAndImage(std::vector<std::vector<cv::Point3f>> points, std::vector<std::vector<cv::Vec3b>> colors);
-*/
-
 #endif
 

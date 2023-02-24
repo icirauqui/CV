@@ -53,6 +53,18 @@ public:
 
   double f();
 
+  cv::Point3d c();
+
+  cv::Mat K();
+
+  cv::Vec4d D();
+
+  bool Lens3dReconstrEmpty();
+
+  void Lens3dReconstr(std::vector<cv::Point2f> points);
+
+  inline std::vector<std::vector<double>> Lens3dReconstr() { return lens3d_reconstr_; }
+
   inline double fx() { return fx_; }
   inline double fy() { return fy_; }
   inline double cx() { return cx_; }
@@ -73,6 +85,30 @@ private:
   double k3_ = 0.0;
   double k4_ = 0.0;
   double k5_ = 0.0;
+
+  std::vector<std::vector<double>> lens3d_reconstr_;
+};
+
+
+
+class Image {
+
+public:
+  Image(cv::Mat image, FisheyeLens* lens);
+
+  inline cv::Mat GetImage() { return image_; }
+
+  std::vector<cv::Point2f> points_;
+  std::vector<cv::Vec3b> colors_;
+  std::vector<cv::Point3f> image3d_;
+  std::vector<std::vector<double>> coords3d_reconstr_;
+  
+  cv::Mat image_;
+  FisheyeLens* lens_;
+
+  std::vector<cv::KeyPoint> kps_;
+  std::vector<std::vector<cv::Point>> contours_;
+  cv::Mat desc_;
 };
 
 
@@ -86,12 +122,18 @@ public:
 
   void AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color = cv::Vec3b(100,100,100));
 
+  void AddWidget(cv::viz::Widget widget);
+
+  void AddPlane(std::vector<double> kp, cv::Point3f pt1, cv::Point3f pt2, int size = 1);
+
   void Render();
 
 private:
 
   std::vector<std::vector<cv::Point3f>> point_clouds_;
   std::vector<std::vector<cv::Vec3b>> colors_;
+
+  std::vector<cv::viz::Widget> widgets_;
 
   cv::viz::Viz3d window_;
   std::string window_name_ = "3D";

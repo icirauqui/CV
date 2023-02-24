@@ -1,0 +1,14 @@
+{
+    "control": {
+        "num_pairs": 1,
+        "num_sequences": 1,
+        "path": "images/in/"
+    },
+    "image_pairs": {
+        "pair_0": {
+            "sequence": "Seq_001",
+            "image_0": "1.png",
+            "image_1": "2.png"
+        }
+    }
+}

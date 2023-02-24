@@ -205,6 +205,72 @@ double FisheyeLens::f() {
 }
 
 
+cv::Point3d FisheyeLens::c() {
+  double f = this->f();
+  return cv::Point3d(cx_, cy_, f);
+}
+
+
+cv::Mat FisheyeLens::K() {
+  cv::Mat K = cv::Mat::zeros(3, 3, CV_64F);
+  K.at<double>(0, 0) = fx_;
+  K.at<double>(1, 1) = fy_;
+  K.at<double>(0, 2) = cx_;
+  K.at<double>(1, 2) = cy_;
+  K.at<double>(2, 2) = 1.0;
+
+  // Convert K to CV_64F
+  K.convertTo(K, CV_64F);
+
+  return K;
+}
+
+
+cv::Vec4d FisheyeLens::D() {
+  return cv::Vec4f(k1_, k2_, k3_, k4_);
+}
+
+bool FisheyeLens::Lens3dReconstrEmpty() {
+  if (lens3d_reconstr_.size() == 0) {
+    return true;
+  }
+  return false;
+}
+
+
+void FisheyeLens::Lens3dReconstr(std::vector<cv::Point2f> points) {
+  // Project back the image points onto the semi-sphere
+  for (auto coord : points) {
+    double x = coord.x;
+    double y = coord.y;
+    std::vector<double> coord3d = Compute3D(x, y, false, 1.0);
+    lens3d_reconstr_.push_back(coord3d);
+  }
+}
+
+
+
+Image::Image(cv::Mat image, FisheyeLens* lens):
+  image_(image), lens_(lens) {
+
+  // Image points
+  int resolution = 1;
+  for (int x = 0; x < image_.cols; x+=resolution) {
+    for (int y = 0; y < image_.rows; y+=resolution) {
+      double xd = (x - lens->cx()) / lens->fx();
+      double yd = (y - lens->cy()) / lens->fy();
+      points_.push_back(cv::Point2f(x, y));
+      colors_.push_back(image_.at<cv::Vec3b>(y, x));
+      image3d_.push_back(cv::Point3f(-xd, -yd, -lens->f()));
+    }
+  }
+
+  if (lens->Lens3dReconstrEmpty()) {
+    lens->Lens3dReconstr(points_);
+  }
+}
+
+
 
 Visualizer::Visualizer(std::string window_name, double scale):
   window_name_(window_name), scale_(scale) {
@@ -228,6 +294,33 @@ void Visualizer::AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color) {
 }
 
 
+void Visualizer::AddWidget(cv::viz::Widget widget) {
+  widgets_.push_back(widget);
+}
+
+
+void Visualizer::AddPlane(std::vector<double> kp, cv::Point3f pt1, cv::Point3f pt2, int size) {
+  // Draw a plane in 3D that goes through c1g, c2g and kp3d
+  double kp3d_theta = kp[0];
+  double kp3d_phi = kp[1];
+  double kp3d_x = sin(kp3d_theta) * cos(kp3d_phi);
+  double kp3d_y = sin(kp3d_theta) * sin(kp3d_phi);
+  double kp3d_z = cos(kp3d_theta);
+  cv::Point3f kp3d(kp3d_x, kp3d_y, kp3d_z);
+  cv::Point3f n = (pt2 - pt1).cross(kp3d - pt1);
+  n = n / cv::norm(n);
+
+  cv::viz::WPlane plane_widget(cv::Point3d(0, 0, 0), 
+                               cv::Vec3d(n.x, n.y, n.z), 
+                               cv::Vec3d(0, 0, 1),
+                               cv::Size2d(size, size));
+  plane_widget.setRenderingProperty(cv::viz::LINE_WIDTH, 2.0);
+  plane_widget.setRenderingProperty(cv::viz::OPACITY, 0.5);
+  
+  AddWidget(plane_widget);
+}
+
+
 void Visualizer::Render() {
   window_ = cv::viz::Viz3d(window_name_);
 
@@ -235,6 +328,11 @@ void Visualizer::Render() {
     std::string name = "cloud" + std::to_string(i);
     cv::viz::WCloud cloud(point_clouds_[i], colors_[i]);
     window_.showWidget(name, cloud);
+  }
+
+  for (unsigned int i=0; i<widgets_.size(); i++) {
+    std::string name = "widget" + std::to_string(i);
+    window_.showWidget(name, widgets_[i]);
   }
 
   // Add a coordinate system

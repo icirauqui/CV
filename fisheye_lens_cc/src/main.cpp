@@ -334,9 +334,8 @@ void ImgMatching() {
   cv::Point2f kp = imgs[0].kps_[430].pt;
   std::vector<double> kp3d_v = lens.Compute3D(kp.x, kp.y, true);
 
-
-
-  
+  cv::Point3d kp_xyz = lens.CilToCart(kp3d_v[0], kp3d_v[1]);
+  cv::Vec4f pi = am::EquationPlane(kp_xyz, c1g, c2g);
 
 
 
@@ -389,19 +388,7 @@ void ImgMatching() {
 
 
 
-  // Draw a plane in 3D that goes through c1g, c2g and kp3d
-  //double kp3d_theta = kp3d_v[0];
-  //double kp3d_phi = kp3d_v[1];
-  //double kp3d_x = sin(kp3d_theta) * cos(kp3d_phi);
-  //double kp3d_y = sin(kp3d_theta) * sin(kp3d_phi);
-  //double kp3d_z = cos(kp3d_theta);
-  //cv::Point3f kp3d(kp3d_x, kp3d_y, kp3d_z);
-  //cv::Point3f n = (c2g - c1g).cross(kp3d - c1g);
-  //n = n / cv::norm(n);
 
-  
-
-  
 
 
 
@@ -413,17 +400,6 @@ void ImgMatching() {
   }
 
   vis.AddPlane(kp3d_v, c1g, c2g, 5);
-
-  // Draw epipolar plane
-  //cv::viz::WPlane plane_widget(cv::Point3d(0, 0, 0), 
-  //                             cv::Vec3d(n.x, n.y, n.z), 
-  //                             cv::Vec3d(0, 0, 1),
-  //                             cv::Size2d(10, 10));
-  //plane_widget.setRenderingProperty(cv::viz::LINE_WIDTH, 2.0);
-  //plane_widget.setRenderingProperty(cv::viz::OPACITY, 0.5);
-  //vis.AddWidget(plane_widget);
-
-
 
   vis.Render();
 

@@ -238,7 +238,8 @@ bool FisheyeLens::Lens3dReconstrEmpty() {
 }
 
 
-void FisheyeLens::Lens3dReconstr(std::vector<cv::Point2f> points) {
+void FisheyeLens::Lens3dReconstr(std::vector<cv::Point2f> points,
+                                 int w, int h) {
   // Project back the image points onto the semi-sphere
   for (auto coord : points) {
     double x = coord.x;
@@ -246,8 +247,38 @@ void FisheyeLens::Lens3dReconstr(std::vector<cv::Point2f> points) {
     std::vector<double> coord3d = Compute3D(x, y, false, 1.0);
     lens3d_reconstr_.push_back(coord3d);
   }
+
+  if (w != 0 && h != 0) {
+    double w_max = std::max(cx_, w - cx_);
+    double h_max = std::max(cy_, h - cy_);
+    double r_max = sqrt(pow(w_max, 2) + pow(h_max, 2));
+
+    for (unsigned int i=0; i<r_max; i++) {
+      std::vector<double> coord3d = Compute3D(i/fx_, 0, true, 1.0);
+      thetas_.push_back(coord3d[0]);
+    }
+  }
 }
 
+
+cv::Point3d FisheyeLens::CilToCart(double theta, double phi, double r) {
+  double x = r * sin(theta) * cos(phi);
+  double y = r * sin(theta) * sin(phi);
+  double z = r * cos(theta);
+
+  return cv::Point3d(x, y, z);
+}
+
+
+std::vector<double> FisheyeLens::CartToCil(double x, double y, double z) {
+  double r = sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
+  double theta = acos(z / r);
+  double phi = atan2(y, x);
+
+  return std::vector<double>({theta, phi});
+
+
+}
 
 
 Image::Image(cv::Mat image, FisheyeLens* lens):
@@ -266,7 +297,7 @@ Image::Image(cv::Mat image, FisheyeLens* lens):
   }
 
   if (lens->Lens3dReconstrEmpty()) {
-    lens->Lens3dReconstr(points_);
+    lens->Lens3dReconstr(points_, image_.cols, image_.rows);
   }
 }
 

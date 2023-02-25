@@ -61,7 +61,12 @@ public:
 
   bool Lens3dReconstrEmpty();
 
-  void Lens3dReconstr(std::vector<cv::Point2f> points);
+  void Lens3dReconstr(std::vector<cv::Point2f> points,
+                      int w = 0, int h = 0);
+
+  cv::Point3d CilToCart(double theta, double phi, double r = 1.0);
+
+  std::vector<double> CartToCil(double x, double y, double z);
 
   inline std::vector<std::vector<double>> Lens3dReconstr() { return lens3d_reconstr_; }
 
@@ -87,6 +92,7 @@ private:
   double k5_ = 0.0;
 
   std::vector<std::vector<double>> lens3d_reconstr_;
+  std::vector<double> thetas_;
 };
 
 

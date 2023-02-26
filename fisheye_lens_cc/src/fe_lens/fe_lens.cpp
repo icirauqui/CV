@@ -310,18 +310,19 @@ Visualizer::Visualizer(std::string window_name, double scale):
 }
 
 
-void Visualizer::AddCloud(std::vector<cv::Point3f> cloud, std::vector<cv::Vec3b> color) {
+void Visualizer::AddCloud(std::vector<cv::Point3f> cloud, std::vector<cv::Vec3b> color, double scale) {
   point_clouds_.push_back(cloud);
   colors_.push_back(color);
+  scales_.push_back(scale);
 }
 
 
-void Visualizer::AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color) {
+void Visualizer::AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color, double scale) {
   std::vector<cv::Vec3b> colors;
   for (unsigned int i = 0; i < cloud.size(); i++) {
     colors.push_back(color);
   }
-  AddCloud(cloud, colors);
+  AddCloud(cloud, colors, scale);
 }
 
 

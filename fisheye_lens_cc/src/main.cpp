@@ -368,10 +368,17 @@ void ImgMatching() {
 
   // Reconstructed lens
   std::vector<std::vector<cv::Point3f>> points_lens;
+  std::vector<std::vector<cv::Point3f>> points_lens_pi_intersect;
+  std::vector<std::vector<cv::Point3f>> points_candidate_th;
+  std::vector<std::vector<cv::Point3f>> points_candidates;
 
   for (unsigned int i=0; i<imgs.size(); i++) {
 
     std::vector<cv::Point3f> points_lens_reconstr;
+    std::vector<cv::Point3f> points_lens_pi_intersect_i;
+    std::vector<cv::Point3f> points_candidate_th_i;
+    std::vector<cv::Point3f> points_candidates_i;
+
     for (auto coord: imgs[i].lens_->Lens3dReconstr()) {
       double x = (i*tx) + (i*offset(0)) + scale * sin(coord[0]) * cos(coord[1]);
       double y = (i*ty) + (i*offset(1)) + scale * sin(coord[0]) * sin(coord[1]);
@@ -382,8 +389,34 @@ void ImgMatching() {
         z = 0.0;
       }
       points_lens_reconstr.push_back(cv::Point3f(x, y, z));
+
+      // Check if point is on epipolar plane
+      double error_pi = pi(0)*x + pi(1)*y + pi(2)*z + pi(3);
+      if (std::abs(error_pi) < 0.01) {
+        points_lens_pi_intersect_i.push_back(cv::Point3f(x, y, z));
+      }
+
+      // Check if point is under angle threshold
+      double angle = am::AngleLinePlane(pi, cv::Point3f(x,y,z));
+      if (angle < th_angle3d) {
+        points_candidate_th_i.push_back(cv::Point3f(x, y, z));
+      }
     }
+
+    for (auto kp_cand: imgs[i].kps_) {
+      cv::Point2f kp_cand_2d = kp_cand.pt;
+      std::vector<double> kp_cand_3d = lens.Compute3D(kp_cand_2d.x, kp_cand_2d.y, true);
+      cv::Point3d kp_cand_3d_xyz = lens.CilToCart(kp_cand_3d[0], kp_cand_3d[1]);
+      double angle_cand = am::AngleLinePlane(pi, cv::Vec3f(kp_cand_3d_xyz.x, kp_cand_3d_xyz.y, kp_cand_3d_xyz.z));
+      if (angle_cand < th_angle3d) {
+        points_candidates_i.push_back(kp_cand_3d_xyz);
+      }
+    }
+
     points_lens.push_back(points_lens_reconstr);
+    points_lens_pi_intersect.push_back(points_lens_pi_intersect_i);
+    points_candidate_th.push_back(points_candidate_th_i);
+    points_candidates.push_back(points_candidates_i);
   }
 
 
@@ -397,6 +430,10 @@ void ImgMatching() {
   for (unsigned int i=0; i<points_images.size(); i++) {
     vis.AddCloud(points_images[i], imgs[i].colors_);
     vis.AddCloud(points_lens[i], imgs[i].colors_);
+
+    vis.AddCloud(points_candidate_th[i], cv::Vec3d(0,0,255));
+    vis.AddCloud(points_lens_pi_intersect[i], cv::Vec3d(0,0,0));
+    vis.AddCloud(points_candidates[i], cv::Vec3d(0,255,0));
   }
 
   vis.AddPlane(kp3d_v, c1g, c2g, 5);

@@ -124,9 +124,9 @@ class Visualizer {
 public: 
   Visualizer(std::string window_name = "3D", double scale = 1.0);
 
-  void AddCloud(std::vector<cv::Point3f> cloud, std::vector<cv::Vec3b> color);
+  void AddCloud(std::vector<cv::Point3f> cloud, std::vector<cv::Vec3b> color, double scale = 1.0);
 
-  void AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color = cv::Vec3b(100,100,100));
+  void AddCloud(std::vector<cv::Point3f> cloud, cv::Vec3b color = cv::Vec3b(100,100,100), double scale = 1.0);
 
   void AddWidget(cv::viz::Widget widget);
 
@@ -138,6 +138,7 @@ private:
 
   std::vector<std::vector<cv::Point3f>> point_clouds_;
   std::vector<std::vector<cv::Vec3b>> colors_;
+  std::vector<double> scales_;
 
   std::vector<cv::viz::Widget> widgets_;
 

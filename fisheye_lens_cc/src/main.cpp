@@ -6,6 +6,7 @@
 
 
 #include "fe_lens/fe_lens.hpp"
+#include "matcher/matcher.hpp"
 
 
 #include "src/ang_matcher/ang_matcher.h"
@@ -217,8 +218,8 @@ void ImgMatching() {
     img.contours_ = am::GetContours(img.image_, 20, 3, false);
     img.kps_ = am::KeypointsInContour(img.contours_[0], img.kps_);
     f2d->compute(img.image_, img.kps_, img.desc_);
-    std::cout << "      Keypoints: " << img.kps_.size() 
-              << "      Descriptors: " << img.desc_.rows << std::endl;
+    //std::cout << "      Keypoints: " << img.kps_.size() 
+    //          << "      Descriptors: " << img.desc_.rows << std::endl;
   }
   
 
@@ -257,13 +258,17 @@ void ImgMatching() {
 
   cv::Mat R1, R2, t;
   cv::decomposeEssentialMat(E, R1, R2, t);
+  imgs[0].R_ = R1;
+  imgs[0].t_ = cv::Mat::zeros(3, 1, CV_64F);
+  imgs[1].R_ = R2;
+  imgs[1].t_ = t;
 
-  std::cout << " 4.2. R1" << std::endl;
-  std::cout << R1 << std::endl;
-  std::cout << " 4.3. R2" << std::endl;
-  std::cout << R2 << std::endl;
-  std::cout << " 4.4. t" << std::endl;
-  std::cout << t << std::endl;
+  //std::cout << " 4.2. R1" << std::endl;
+  //std::cout << R1 << std::endl;
+  //std::cout << " 4.3. R2" << std::endl;
+  //std::cout << R2 << std::endl;
+  //std::cout << " 4.4. t" << std::endl;
+  //std::cout << t << std::endl;
 
 
   double tx = t.at<double>(0, 0);
@@ -286,60 +291,39 @@ void ImgMatching() {
   bool draw_global = false;
   
   //float th_epiline = 4.0;
-  float th_sampson = 4.0;
+  float th_sampson = 8.0;
   //float th_angle2d = DegToRad(1.0);
-  float th_angle3d = DegToRad(4.0);
-  double th_sift = 100.0;
+  float th_angle3d = DegToRad(2.0);
+  double th_sift = 2000.0;
 
   cv::Point3f c1g(0.0, 0.0, 0.0);
   cv::Point3f c2g = c1g + cv::Point3f(tx, ty, tz);
 
-  cv::Point3f cc = lens.c();
-
-
   // Match by distance threshold
-  am::AngMatcher angmatcher(imgs[0].kps_, imgs[1].kps_, imgs[0].desc_, imgs[1].desc_,
-                            F12, imgs[0].image_, imgs[1].image_, 2*lens.cx(), 2*lens.cy(),
-                            lens.f(), cc, cc, c1g, c2g, R1, R2, t, Kp, lens.D());
+  //am::AngMatcher angmatcher(&imgs[0], &imgs[1], 
+  //                          &lens, 
+  //                          F12, 
+  //                          R1, R2, t,
+  //                          c1g, c2g);
 
-  //angmatcher.Match("sampson", th_sampson, th_sift, cross_check, draw_inline, draw_global);
-  angmatcher.Match("angle3d", th_angle3d, th_sift, cross_check, draw_inline, draw_global);
 
-  //am.ViewMatches("epiline", "epiline desc matches", 0.5);
+
+
+
 
 
 
   std::cout << " 6. Compare matches" << std::endl;
-  int report_level = 1;
-  //am.CompareMatches("epiline", "sampson", report_level);
-  //am.CompareMatches("epiline", "angle2d", report_level);
-  //am.CompareMatches("epiline", "angle3d", report_level);
-  //am.CompareMatches("sampson", "angle2d", report_level);
-  angmatcher.CompareMatches("sampson", "angle3d", report_level);
-  //am.CompareMatches("angle2d", "angle3d", report_level);
+
+  // Different points: 32, 395, 409, 430, 473, 642, 644
+  int point_analysis = 473;
 
 
-  std::cout << " 7. Compare matches for specific query keypoint" << std::endl;
-  //angmatcher.ViewCandidatesCompare("sampson", "angle3d",  32);
-  //angmatcher.ViewCandidatesCompare("sampson", "angle3d", 395);
-  //angmatcher.ViewCandidatesCompare("sampson", "angle3d", 409);
-  //angmatcher.ViewCandidatesCompare("sampson", "angle3d", 430);
-  //angmatcher.ViewCandidatesCompare("sampson", "angle3d", 473);
-  //angmatcher.ViewCandidatesCompare("sampson", "angle3d", 642);
-  //angmatcher.ViewCandidatesCompare("sampson", "angle3d", 644);
-
-
-
-  // For kp = 430 in img 0, draw epipolar plane
-  cv::Point2f kp = imgs[0].kps_[430].pt;
-  std::vector<double> kp3d_v = lens.Compute3D(kp.x, kp.y, true);
-
-  cv::Point3d kp_xyz = lens.CilToCart(kp3d_v[0], kp3d_v[1]);
-  cv::Vec4f pi = am::EquationPlane(kp_xyz, c1g, c2g);
-
-
-
-  //cv::waitKey(0);
+  cv::Point2f pt1 = imgs[0].kps_[point_analysis].pt;
+  std::vector<double> pt1_cil_cam = lens.Compute3D(pt1.x, pt1.y, false);
+  cv::Point3d pt1_cam = lens.CilToCart(pt1_cil_cam[0], pt1_cil_cam[1]);
+  cv::Point3d pt1_w = imgs[0].PointGlobal(pt1_cam);
+  cv::Vec4f pi1 = am::EquationPlane(pt1_w, c1g, c2g);
 
 
 
@@ -350,73 +334,67 @@ void ImgMatching() {
  
   float scale = 1;
   cv::Vec3d offset(0, 0, 0);
+  float th_intersect = 0.005;
 
   std::vector<std::vector<cv::Point3f>> points_images;
   for (unsigned int i=0; i<imgs.size(); i++) {
     // Projected image
     std::vector<cv::Point3f> points_image;
-    for (auto coord: imgs[i].image3d_) {
-      double x = (i*tx) + (i*offset(0)) + scale * coord.x;
-      double y = (i*ty) + (i*offset(1)) + scale * coord.y;
-      double z = (i*tz) + (i*offset(2)) + 0.0;
-      points_image.push_back(cv::Point3f(x, y, z));
+    for (auto coord_img: imgs[i].image3d_) {
+      cv::Point3f coord = imgs[i].PointGlobal(cv::Point3f(coord_img.x, coord_img.y, 0.0));
+      cv::Point3f offset_i = cv::Point3f(i*offset(0), i*offset(1), i*offset(2));
+      points_image.push_back(offset_i + scale*coord);
     }  
     points_images.push_back(points_image);
   }
 
 
 
-  // Reconstructed lens
+  // Draw each lens, its intersection with the epipolar plane, and the search region
   std::vector<std::vector<cv::Point3f>> points_lens;
   std::vector<std::vector<cv::Point3f>> points_lens_pi_intersect;
   std::vector<std::vector<cv::Point3f>> points_candidate_th;
-  std::vector<std::vector<cv::Point3f>> points_candidates;
+  std::vector<std::vector<cv::Point2f>> points_candidate_th_pi_intersect;
 
   for (unsigned int i=0; i<imgs.size(); i++) {
-
     std::vector<cv::Point3f> points_lens_reconstr;
     std::vector<cv::Point3f> points_lens_pi_intersect_i;
     std::vector<cv::Point3f> points_candidate_th_i;
-    std::vector<cv::Point3f> points_candidates_i;
+    std::vector<cv::Point2f> points_candidate_th_pi_intersect_i;
 
-    for (auto coord: imgs[i].lens_->Lens3dReconstr()) {
-      double x = (i*tx) + (i*offset(0)) + scale * sin(coord[0]) * cos(coord[1]);
-      double y = (i*ty) + (i*offset(1)) + scale * sin(coord[0]) * sin(coord[1]);
-      double z = (i*tz) + (i*offset(2)) + scale * cos(coord[0]);
-      if (z < 0) {
-        x = 0.0;
-        y = 0.0;
-        z = 0.0;
+    int j = 0;
+    for (auto coord_img_c: imgs[i].lens_->Lens3dReconstr()) {
+      cv::Point3f coord_img = lens.CilToCart(coord_img_c[0], coord_img_c[1]);
+      
+      if (coord_img.z < 0) {
+        coord_img = cv::Point3f(0.0, 0.0, 0.0);
       }
-      points_lens_reconstr.push_back(cv::Point3f(x, y, z));
+
+      cv::Point3f coord = imgs[i].PointGlobal(coord_img);
+      cv::Point3f offset_i = cv::Point3f(i*offset(0), i*offset(1), i*offset(2));
+      points_lens_reconstr.push_back(offset_i + scale*coord);
 
       // Check if point is on epipolar plane
-      double error_pi = pi(0)*x + pi(1)*y + pi(2)*z + pi(3);
-      if (std::abs(error_pi) < 0.01) {
-        points_lens_pi_intersect_i.push_back(cv::Point3f(x, y, z));
+      double error_pi = pi1(0)*coord.x + pi1(1)*coord.y + pi1(2)*coord.z + pi1(3);
+      if (std::abs(error_pi) < th_intersect) {
+        points_lens_pi_intersect_i.push_back(coord);
       }
 
       // Check if point is under angle threshold
-      double angle = am::AngleLinePlane(pi, cv::Point3f(x,y,z));
+      cv::Point3f coord_th = coord - cv::Point3f(tx, ty, tz);
+      double angle = am::AngleLinePlane(pi1, coord_th);
       if (angle < th_angle3d) {
-        points_candidate_th_i.push_back(cv::Point3f(x, y, z));
+        points_candidate_th_i.push_back(coord);
+        cv::Point2f pt_over_image = imgs[i].points_[j];
+        points_candidate_th_pi_intersect_i.push_back(pt_over_image);
       }
-    }
-
-    for (auto kp_cand: imgs[i].kps_) {
-      cv::Point2f kp_cand_2d = kp_cand.pt;
-      std::vector<double> kp_cand_3d = lens.Compute3D(kp_cand_2d.x, kp_cand_2d.y, true);
-      cv::Point3d kp_cand_3d_xyz = lens.CilToCart(kp_cand_3d[0], kp_cand_3d[1]);
-      double angle_cand = am::AngleLinePlane(pi, cv::Vec3f(kp_cand_3d_xyz.x, kp_cand_3d_xyz.y, kp_cand_3d_xyz.z));
-      if (angle_cand < th_angle3d) {
-        points_candidates_i.push_back(kp_cand_3d_xyz);
-      }
+      j++;
     }
 
     points_lens.push_back(points_lens_reconstr);
     points_lens_pi_intersect.push_back(points_lens_pi_intersect_i);
     points_candidate_th.push_back(points_candidate_th_i);
-    points_candidates.push_back(points_candidates_i);
+    points_candidate_th_pi_intersect.push_back(points_candidate_th_pi_intersect_i);
   }
 
 
@@ -426,17 +404,164 @@ void ImgMatching() {
 
 
 
-  Visualizer vis;
+  Matcher matcher_angle;
+  matcher_angle.MatchAngle(&lens, &imgs[0], &imgs[1], th_angle3d);
+  std::vector<cv::Point3f> points_candidates_angle = matcher_angle.candidates_crosscheck_[point_analysis];
+  std::vector<cv::DMatch> candidates_angle_nn = matcher_angle.NNMatches(th_sift);
+  std::vector<cv::DMatch> candidates_angle_desc = matcher_angle.DescMatches(&imgs[0], &imgs[1], th_sift);
+
+  std::vector<cv::Point3f> points_candidates_angle_nn = 
+    matcher_angle.Match3D(&imgs[1], &lens, candidates_angle_nn, point_analysis);
+  
+  std::vector<cv::Point3f> points_candidates_angle_desc =
+    matcher_angle.Match3D(&imgs[1], &lens, candidates_angle_desc, point_analysis);
+
+  cv::Point2f match_angle = matcher_angle.Match2D(&imgs[1], &lens, candidates_angle_desc, point_analysis);
+
+
+  // Compute and draw epipolar candidates
+  Matcher matcher_sampson;
+  matcher_sampson.MatchSampson(&lens, &imgs[0], &imgs[1], F12, th_sampson);
+  std::vector<cv::Point3f> candidates_sampson = matcher_sampson.candidates_crosscheck_[point_analysis];
+  std::vector<cv::DMatch> candidates_sampson_nn = matcher_sampson.NNMatches(th_sift);
+  std::vector<cv::DMatch> candidates_sampson_desc = matcher_sampson.DescMatches(&imgs[0], &imgs[1], th_sift);
+
+  std::vector<cv::Point3f> points_candidates_sampson_desc =
+    matcher_angle.Match3D(&imgs[1], &lens, candidates_sampson_desc, point_analysis);
+
+  cv::Point2f match_sampson = matcher_sampson.Match2D(&imgs[1], &lens, candidates_sampson_desc, point_analysis);
+
+
+
+
+
+
+  // In image 2, draw the angle threshold and the epipolar line threshold
+  // Draw points_candidate_th[1] over img2 with opacity 0.5
+  Visualizer vis;  
+  float opacity = 0.5;
+  cv::Mat img1 = imgs[0].image_.clone();
+  cv::Mat img2 = imgs[1].image_.clone();
+
+  // Draw intersection of epipolar plane with lens in image 2
+  for (auto pt: points_candidate_th_pi_intersect[1]) {
+    img2.at<cv::Vec3b>(pt.y, pt.x) = img2.at<cv::Vec3b>(pt.y, pt.x) * (1-opacity) + cv::Vec3b(0,255,0) * opacity;
+  }
+
+
+
+  // Draw epipolar line and search region
+  std::vector<cv::Point2f> points_epipolar_th = matcher_sampson.SampsonRegion(&lens, &imgs[0], &imgs[1], F12, point_analysis, th_sampson);
+  for (auto pt: points_epipolar_th) {
+    img2.at<cv::Vec3b>(pt.y, pt.x) = img2.at<cv::Vec3b>(pt.y, pt.x) * (1-opacity) + cv::Vec3b(0,0,255) * opacity;
+  }
+
+
+
+
+  // Draw Angle candidates in image 2
+  std::vector<double> points_candidates_val_angle = matcher_angle.candidates_val_crosscheck_[point_analysis];
+  for (unsigned int i=0; i<points_candidates_val_angle.size(); i++) {
+    if (points_candidates_val_angle[i] > 0.) {
+      cv::Point2f pt_over_image = imgs[1].kps_[i].pt;
+      cv::circle(img2, cv::Point2f(pt_over_image.x, pt_over_image.y), 5, vis.yellow, -1);
+    }
+  }
+
+
+
+  // Draw Sampson canddates in image 2
+  for (auto pt: candidates_sampson) {
+    cv::circle(img2, cv::Point2f(pt.x, pt.y), 5, vis.blue, -1);
+  }
+
+  // Draw query point in image 1
+  cv::circle(img1, cv::Point2f(pt1.x, pt1.y), 10, vis.blue, 2);
+
+
+
+
+  // Draw match if exists
+
+  if (match_angle.x > 0 && match_angle.y > 0) {
+    std::cout << "Match angle found" << std::endl;
+    cv::circle(img2, cv::Point2f(match_angle.x, match_angle.y), 12, cv::Vec3b(255,255,255), 3);
+    cv::circle(img2, cv::Point2f(match_angle.x, match_angle.y), 9, cv::Vec3b(0,255,0), -1);
+  } else {
+    std::cout << "Match angle not found" << std::endl;
+  }
+
+  if (match_sampson.x > 0 && match_sampson.y > 0) {
+    std::cout << "Match sampson found" << std::endl;
+    cv::circle(img2, cv::Point2f(match_sampson.x, match_sampson.y), 12, cv::Vec3b(255,255,255), 3);
+    cv::circle(img2, cv::Point2f(match_sampson.x, match_sampson.y), 9, cv::Vec3b(0,0,255), -1);
+  } else {
+    std::cout << "Match sampson not found" << std::endl;
+  }
+
+  if (match_angle.x == match_sampson.x && match_angle.y == match_sampson.y) {
+    std::cout << "Match angle and sampson are the same" << std::endl;
+  } else {
+    std::cout << "Match angle and sampson are different" << std::endl;
+  }
+
+
+
+
+
+
+
+
+
+
   for (unsigned int i=0; i<points_images.size(); i++) {
     vis.AddCloud(points_images[i], imgs[i].colors_);
     vis.AddCloud(points_lens[i], imgs[i].colors_);
 
-    vis.AddCloud(points_candidate_th[i], cv::Vec3d(0,0,255));
-    vis.AddCloud(points_lens_pi_intersect[i], cv::Vec3d(0,0,0));
-    vis.AddCloud(points_candidates[i], cv::Vec3d(0,255,0));
+    vis.AddCloud(points_candidate_th[i], cv::Vec3d(0,0,255), 1.0, 0.2);
+    vis.AddCloud(points_lens_pi_intersect[i], cv::Vec3d(0,0,0), 1.0, 1.0);
   }
 
-  vis.AddPlane(kp3d_v, c1g, c2g, 5);
+  std::cout << "Candidates angle all/nn/desc: " 
+            << points_candidates_angle.size() << " / " 
+            << candidates_angle_nn.size() << "-" << points_candidates_angle_nn.size() << " / "
+            << candidates_angle_desc.size() << "-" << points_candidates_angle_desc.size() << std::endl;
+
+  if (points_candidates_angle.size() > 0)
+    vis.AddCloud(points_candidates_angle, vis.yellow, 3.0);
+  if (points_candidates_angle_nn.size() > 0)
+    vis.AddCloud(points_candidates_angle_nn, vis.green, 6.0);
+  if (points_candidates_angle_desc.size() > 0)
+    vis.AddCloud(points_candidates_angle_desc, vis.pink, 6.0);
+
+
+  // Point in image 1
+  std::vector<cv::Point3f> point_im_1 = {pt1_w};
+  vis.AddCloud(point_im_1, vis.green, 6.0);
+
+  vis.AddPlane(pt1_w, c1g, c2g, 5);
+
+
+
+
+
+
+
+
+
+  // Before visualizing, save the image pair
+  cv::Mat img12;
+  cv::hconcat(img1, img2, img12);
+  cv::resize(img12, img12, cv::Size(), 0.5, 0.5);  
+  cv::imwrite("/home/icirauqui/w0rkspace/CV/fisheye_lens_cc/images/img12.png", img12);
+  //cv::imshow("img2", img12);
+  //cv::waitKey(0);
+
+
+
+
+
+
 
   vis.Render();
 
